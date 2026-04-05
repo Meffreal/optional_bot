@@ -13,6 +13,7 @@ COGS = [
     "cogs.moderation",
     "cogs.utility",
     "cogs.admin",
+    "cogs.raiderio",
 ]
 
 
@@ -64,6 +65,11 @@ async def help_command(ctx):
     embed.add_field(
         name="Utility",
         value="`ping` `serverinfo` `userinfo` `avatar` `uptime`",
+        inline=False
+    )
+    embed.add_field(
+        name="Raider.IO",
+        value="`rio <character> - <realm>`",
         inline=False
     )
     embed.add_field(
