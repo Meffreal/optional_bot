@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import os
-import asyncio
 from dotenv import load_dotenv
 from database import init_db
 
@@ -12,7 +11,6 @@ PREFIX = os.getenv("PREFIX", ".")
 
 COGS = [
     "cogs.moderation",
-    "cogs.fun",
     "cogs.utility",
     "cogs.admin",
 ]
@@ -61,11 +59,6 @@ async def help_command(ctx):
     embed.add_field(
         name="Moderation",
         value="`ban` `kick` `timeout` `warn` `warnings` `clearwarns` `purge` `slowmode` `lock` `unlock`",
-        inline=False
-    )
-    embed.add_field(
-        name="Fun",
-        value="`8ball` `roll` `coinflip` `rps` `roast` `joke` `rate`",
         inline=False
     )
     embed.add_field(
