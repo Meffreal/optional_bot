@@ -6,22 +6,22 @@ import aiohttp
 RAIDERIO_API = "https://raider.io/api/v1/characters/profile"
 
 IO_ROLES = [
-    (3500, "Interrupt God"),
-    (3000, "Interrupt Optional"),
-    (2500, "IO Enjoyer"),
-    (2000, "Keystone Legend"),
-    (1000, "Keystone Hero"),
-    (0,    "Casual"),
+    (3500, "Interrupt God",      "3500+"),
+    (3000, "Interrupt Optional", "3000 - 3499"),
+    (2500, "IO Enjoyer",         "2500 - 2999"),
+    (2000, "Keystone Legend",    "2000 - 2499"),
+    (1000, "Keystone Hero",      "1000 - 1999"),
+    (0,    "Casual",             "0 - 999"),
 ]
 
-IO_ROLE_NAMES = {name for _, name in IO_ROLES}
+IO_ROLE_NAMES = {name for _, name, _ in IO_ROLES}
 
 
-def get_role_name(score: float) -> str:
-    for threshold, name in IO_ROLES:
+def get_role_info(score: float) -> tuple[str, str]:
+    for threshold, name, range_str in IO_ROLES:
         if score >= threshold:
-            return name
-    return "Casual"
+            return name, range_str
+    return "Casual", "0 - 999"
 
 
 class RaiderIO(commands.Cog):
@@ -41,8 +41,8 @@ class RaiderIO(commands.Cog):
                     return None
                 return await resp.json()
 
-    async def update_io_role(self, member: discord.Member, score: float) -> str:
-        role_name = get_role_name(score)
+    async def update_io_role(self, member: discord.Member, score: float) -> tuple[str, str]:
+        role_name, range_str = get_role_info(score)
 
         # Remove all existing IO roles
         roles_to_remove = [r for r in member.roles if r.name in IO_ROLE_NAMES]
@@ -55,7 +55,7 @@ class RaiderIO(commands.Cog):
             role = await member.guild.create_role(name=role_name, reason="Raider.IO role auto-assign")
 
         await member.add_roles(role)
-        return role_name
+        return role_name, range_str
 
     # ── PREFIX COMMAND ────────────────────────────────────────────────────────
 
@@ -80,7 +80,7 @@ class RaiderIO(commands.Cog):
         scores = data.get("mythic_plus_scores_by_season", [])
         score = scores[0]["scores"]["all"] if scores else 0.0
 
-        role_name = await self.update_io_role(ctx.author, score)
+        role_name, range_str = await self.update_io_role(ctx.author, score)
 
         embed = discord.Embed(
             title=f"{data['name']} - {data['realm']}",
@@ -91,7 +91,7 @@ class RaiderIO(commands.Cog):
         embed.add_field(name="Class", value=data.get("class", "Unknown"), inline=True)
         embed.add_field(name="Spec", value=data.get("active_spec_name", "Unknown"), inline=True)
         embed.add_field(name="M+ Score", value=f"**{score:.0f}**", inline=True)
-        embed.add_field(name="Role Assigned", value=f"`{role_name}`", inline=False)
+        embed.add_field(name="Role Assigned", value=f"`{role_name}` ({range_str})", inline=False)
         embed.set_footer(text="Data from Raider.IO")
         await ctx.send(embed=embed)
 
@@ -110,7 +110,7 @@ class RaiderIO(commands.Cog):
         scores = data.get("mythic_plus_scores_by_season", [])
         score = scores[0]["scores"]["all"] if scores else 0.0
 
-        role_name = await self.update_io_role(interaction.user, score)
+        role_name, range_str = await self.update_io_role(interaction.user, score)
 
         embed = discord.Embed(
             title=f"{data['name']} - {data['realm']}",
@@ -121,7 +121,7 @@ class RaiderIO(commands.Cog):
         embed.add_field(name="Class", value=data.get("class", "Unknown"), inline=True)
         embed.add_field(name="Spec", value=data.get("active_spec_name", "Unknown"), inline=True)
         embed.add_field(name="M+ Score", value=f"**{score:.0f}**", inline=True)
-        embed.add_field(name="Role Assigned", value=f"`{role_name}`", inline=False)
+        embed.add_field(name="Role Assigned", value=f"`{role_name}` ({range_str})", inline=False)
         embed.set_footer(text="Data from Raider.IO")
         await interaction.followup.send(embed=embed)
 
