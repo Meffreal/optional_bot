@@ -15,6 +15,7 @@ COGS = [
     "cogs.admin",
     "cogs.raiderio",
     "cogs.rolepicker",
+    "cogs.rules",
 ]
 
 
