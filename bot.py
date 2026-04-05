@@ -14,6 +14,7 @@ COGS = [
     "cogs.utility",
     "cogs.admin",
     "cogs.raiderio",
+    "cogs.rolepicker",
 ]
 
 
