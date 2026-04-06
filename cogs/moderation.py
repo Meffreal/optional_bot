@@ -6,6 +6,16 @@ from datetime import timedelta
 import re
 
 
+MOD_ROLE_IDS = {1490485778453889148, 1490485778453889147}
+
+
+def has_mod_role():
+    async def predicate(interaction: discord.Interaction) -> bool:
+        user_role_ids = {r.id for r in interaction.user.roles}
+        return bool(user_role_ids & MOD_ROLE_IDS)
+    return app_commands.check(predicate)
+
+
 def parse_duration(text: str) -> timedelta | None:
     match = re.fullmatch(r"(\d+)([smhd])", text.strip().lower())
     if not match:
@@ -19,6 +29,17 @@ class Moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def cog_check(self, ctx: commands.Context) -> bool:
+        user_role_ids = {r.id for r in ctx.author.roles}
+        if not user_role_ids & MOD_ROLE_IDS:
+            await ctx.send("You don't have permission to use moderation commands.", ephemeral=True)
+            return False
+        return True
+
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CheckFailure):
+            await interaction.response.send_message("You don't have permission to use moderation commands.", ephemeral=True)
+
     # ── BAN ──────────────────────────────────────────────────────────────────
 
     @commands.command(name="ban")
@@ -30,7 +51,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="ban", description="Ban a server member")
     @app_commands.describe(member="Member to ban", reason="Reason for the ban")
-    @app_commands.checks.has_permissions(ban_members=True)
+    @has_mod_role()
     async def ban_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
         await member.ban(reason=reason)
         embed = discord.Embed(title="Banned", description=f"{member.mention} has been banned.\n**Reason:** {reason}", color=discord.Color.red())
@@ -47,7 +68,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="kick", description="Kick a server member")
     @app_commands.describe(member="Member to kick", reason="Reason for the kick")
-    @app_commands.checks.has_permissions(kick_members=True)
+    @has_mod_role()
     async def kick_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
         await member.kick(reason=reason)
         embed = discord.Embed(title="Kicked", description=f"{member.mention} has been kicked.\n**Reason:** {reason}", color=discord.Color.orange())
@@ -67,7 +88,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="timeout", description="Timeout a member")
     @app_commands.describe(member="Member to timeout", duration="Duration (10m, 2h, 1d...)", reason="Reason")
-    @app_commands.checks.has_permissions(moderate_members=True)
+    @has_mod_role()
     async def timeout_slash(self, interaction: discord.Interaction, member: discord.Member, duration: str, reason: str = "No reason provided"):
         delta = parse_duration(duration)
         if not delta:
@@ -88,7 +109,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="warn", description="Warn a member")
     @app_commands.describe(member="Member to warn", reason="Reason")
-    @app_commands.checks.has_permissions(moderate_members=True)
+    @has_mod_role()
     async def warn_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
         warn_id = await db.add_warning(interaction.guild.id, member.id, interaction.user.id, reason)
         warnings = await db.get_warnings(interaction.guild.id, member.id)
@@ -110,7 +131,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="warnings", description="View a member's warnings")
     @app_commands.describe(member="Member to check")
-    @app_commands.checks.has_permissions(moderate_members=True)
+    @has_mod_role()
     async def warnings_slash(self, interaction: discord.Interaction, member: discord.Member):
         warns = await db.get_warnings(interaction.guild.id, member.id)
         if not warns:
@@ -130,7 +151,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="clearwarns", description="Clear all warnings for a member")
     @app_commands.describe(member="Member to clear warnings for")
-    @app_commands.checks.has_permissions(moderate_members=True)
+    @has_mod_role()
     async def clearwarns_slash(self, interaction: discord.Interaction, member: discord.Member):
         count = await db.clear_warnings(interaction.guild.id, member.id)
         await interaction.response.send_message(f"Cleared **{count}** warnings for {member.mention}.")
@@ -145,7 +166,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="purge", description="Delete messages in a channel")
     @app_commands.describe(amount="Number of messages to delete")
-    @app_commands.checks.has_permissions(manage_messages=True)
+    @has_mod_role()
     async def purge_slash(self, interaction: discord.Interaction, amount: int):
         await interaction.response.defer(ephemeral=True)
         await interaction.channel.purge(limit=amount)
@@ -161,7 +182,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="slowmode", description="Set slowmode in a channel")
     @app_commands.describe(seconds="Seconds (0 = disable)")
-    @app_commands.checks.has_permissions(manage_channels=True)
+    @has_mod_role()
     async def slowmode_slash(self, interaction: discord.Interaction, seconds: int):
         await interaction.channel.edit(slowmode_delay=seconds)
         await interaction.response.send_message(f"Slowmode set to **{seconds}s**." if seconds > 0 else "Slowmode disabled.")
@@ -181,13 +202,13 @@ class Moderation(commands.Cog):
         await ctx.send("Channel unlocked.")
 
     @app_commands.command(name="lock", description="Lock a channel")
-    @app_commands.checks.has_permissions(manage_channels=True)
+    @has_mod_role()
     async def lock_slash(self, interaction: discord.Interaction):
         await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=False)
         await interaction.response.send_message("Channel locked.")
 
     @app_commands.command(name="unlock", description="Unlock a channel")
-    @app_commands.checks.has_permissions(manage_channels=True)
+    @has_mod_role()
     async def unlock_slash(self, interaction: discord.Interaction):
         await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=None)
         await interaction.response.send_message("Channel unlocked.")
