@@ -8,6 +8,7 @@ load_dotenv()
 
 TOKEN = os.getenv("TOKEN")
 PREFIX = os.getenv("PREFIX", ".")
+BOT_CHANNEL_ID = 1490485785298866177
 
 COGS = [
     "cogs.moderation",
@@ -51,6 +52,11 @@ class OptionalBot(commands.Bot):
 
 
 bot = OptionalBot()
+
+
+@bot.check
+async def only_bot_channel(ctx):
+    return ctx.channel.id == BOT_CHANNEL_ID
 
 
 @bot.command(name="help")
